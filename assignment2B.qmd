@@ -1,0 +1,14 @@
+---
+title: "assignment2B"
+author: "XiaoFei"
+format: html
+editor: visual
+---
+
+## Approach
+
+This assignment is about classification model evaluation. Performance metrics for binary classification model could be confusion matrices: TP, FP, TN and FN.
+
+I'll also showing accuracy, precision , recall and F1 score in table as a evaluation result.
+
+Problems that I anticipated would be if I can find a way to effectively using visual to show result.
