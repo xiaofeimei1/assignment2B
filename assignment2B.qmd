@@ -12,3 +12,155 @@ This assignment is about classification model evaluation. Performance metrics fo
 I'll also showing accuracy, precision , recall and F1 score in table as a evaluation result.
 
 Problems that I anticipated would be if I can find a way to effectively using visual to show result.
+
+## Data Exploration 
+
+Import data set from given github URL. Verify data loaded correctly and check data types. As shown in the result, there are 93 observations, 3 variables.
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+penguin_data <- read.csv("https://raw.githubusercontent.com/acatlin/data/refs/heads/master/penguin_predictions.csv")
+
+
+head(penguin_data)
+str(penguin_data)
+
+#check penguin gender classfication 
+class_balance <- table(peguin_data$sex)
+class_balance
+
+
+```
+
+Let's show the data set 93 penguin sex distribution in plot. the plot shows slightly larger number of males than females, but overall relatively balanced distribution for binary classification.
+
+```{r}
+# Create an enhanced class distribution plot
+ggplot(penguin_data, aes(x = sex, fill = sex)) +
+  geom_bar(alpha = 0.8, color = "black", width = 0.7) +
+  geom_text(stat = 'count', aes(label = paste0(after_stat(count), " (", 
+           round(after_stat(count)/nrow(penguin_data)*100, 1), "%)")), 
+           vjust = -0.5, size = 4.5, fontface = "bold") +
+  scale_fill_manual(values = c("female" = "#FF6B9D", "male" = "#4A90E2")) +
+  labs(title = "Penguin Sex Distribution",
+       x = "Sex", 
+       y = "Count") +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 16),
+    plot.subtitle = element_text(hjust = 0.5, color = "gray40"),
+    legend.position = "none",
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 13, face = "bold")
+  ) +
+  ylim(0, max(table(penguin_data$sex)) * 1.1)
+
+```
+
+## Testing and Evaluating model
+
+Compute predicted classes using a threshold of 0.5. Result shows that manual predictions using .pred_class column using a 0.5 threshold is 100% matching with the result.
+
+```{r}
+penguin_data <- penguin_data %>%
+  mutate(
+    pred_class_manual = ifelse(.pred_female > 0.5, "female", "male"),
+    pred_numeric = ifelse(.pred_female > 0.5, 1, 0),
+    actual_numeric = ifelse(sex == "female", 1, 0)
+  )
+
+# Compare manual predictions with provided predictions
+comparison <- penguin_data %>%
+  select(.pred_female, .pred_class, pred_class_manual, sex) %>%
+  mutate(match = .pred_class == pred_class_manual)
+
+# Check if our manual predictions match the provided ones
+sum(comparison$match) / nrow(comparison)
+
+
+
+```
+
+Build confusion matrices. Create logical conditions for TP, FP,TN,FN. Also add performance score for accuracy, precision, recall and F1-Score. As shown in the result, the model had 93.5% ACCURACY, 92.3% PRECISION 92.3% of recall and 92.3% F1-score.
+
+```{r}
+
+TP <- sum(penguin_data$pred_numeric == 1 & penguin_data$actual_numeric == 1)
+
+FP <- sum(penguin_data$pred_numeric == 1 & penguin_data$actual_numeric == 0)
+
+TN <- sum(penguin_data$pred_numeric == 0 & penguin_data$actual_numeric == 0)
+
+FN <- sum(penguin_data$pred_numeric == 0 & penguin_data$actual_numeric == 1)
+
+total <- nrow(penguin_data)
+
+# confusion matrix
+confusion_matrix <- matrix(c(TN, FP, FN, TP), nrow = 2, byrow = TRUE,
+                          dimnames = list(Actual = c("Male", "Female"),
+                                          Predicted = c("Male", "Female")))
+confusion_matrix
+
+# Calculate metrics
+accuracy <- (TP + TN) / total
+precision <- TP / (TP + FP)
+recall <- TP / (TP + FN)
+f1_score <- 2 * (precision * recall) / (precision + recall)
+
+# summary
+metrics_df <- data.frame(
+  Metric = c("Accuracy", "Precision", "Recall", "F1-Score"),
+  Value = round(c(accuracy, precision, recall, f1_score), 4),
+  Formula = c(
+    "(TP + TN) / Total",
+    "TP / (TP + FP)",
+    "TP / (TP + FN)",
+    "2 * (Precision * Recall) / (Precision + Recall)"
+  ),
+  Calculation = c(
+    paste0("(", TP, " + ", TN, ") / ", total),
+    paste0(TP, " / (", TP, " + ", FP, ")"),
+    paste0(TP, " / (", TP, " + ", FN, ")"),
+    paste0("2 * (", round(precision, 3), " * ", round(recall, 3), ") / (", 
+           round(precision, 3), " + ", round(recall, 3), ")")
+  )
+)
+
+# show result
+print(metrics_df)
+
+# create performance_data to set up visualization
+performance_data <- data.frame(
+  Metric = factor(c("Accuracy", "Precision", "Recall", "F1-Score"), 
+                  levels = c("Accuracy", "Precision", "Recall", "F1-Score")),
+  Value = c(accuracy, precision, recall, f1_score)
+)
+
+# Visualize  metrics
+ggplot(performance_data, aes(x = Metric, y = Value, fill = Metric)) +
+  geom_col(alpha = 0.8, width = 0.6) +
+  geom_text(aes(label = paste0(round(Value * 100, 1), "%")), 
+            vjust = -0.5, size = 5, fontface = "bold") +
+  scale_fill_manual(values = c("#2E8B57", "#4682B4", "#DA70D6", "#FFA500")) +
+  labs(title = "Model Performance Metrics",
+       subtitle = "Penguin Sex Classification",
+       y = "Score") +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 16),
+    plot.subtitle = element_text(hjust = 0.5, color = "gray40"),
+    legend.position = "none",
+    axis.text.x = element_text(angle = 0, hjust = 0.5, size = 12),
+    axis.title.x = element_blank(),
+    panel.grid.major.x = element_blank()
+  ) +
+  ylim(0, 1.1)
+```
+
+## Conclusion
+
+The objective of this task is to test the modle, from above performance evaluating matrix, we can see the model performs well with all metrics above 90%. Some after thought that about threshold, would performance change with different thresholds?
